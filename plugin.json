@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mad-science",
+  "version": "0.1.0",
+  "description": "Hypothesis-driven data science skills: sharpen a hypothesis, write the experiment contract, slice it into a pipeline, implement it expectation-first in notebooks, review it, and turn results into an article."
+}

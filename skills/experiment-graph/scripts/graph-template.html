@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grafo de Experimentos</title>
+<style>
+/* ==========================================================================
+   experiment-graph — static template.
+   render.py substitutes %%GRAPH_DATA%% with the payload it derived from the
+   pipeline doc. Nothing else in this file varies between runs.
+   Presentation only: all graph derivation (layers, critical path, runnable,
+   blocked, anomalies) happens in scripts/model.py, never here.
+   No external assets — must open offline (file://) behind the corporate proxy.
+   ========================================================================== */
+
+:root[data-theme="dark"]{
+  --bg:#0b1220; --surface:#111a2e; --surface-2:#16213a; --line:#26334d;
+  --text:#e6edf7; --muted:#93a3bd; --faint:#5c6b85;
+  --accent:#22d3ee;
+  --crit:#38bdf8; --sel:#f472b6; --in:#a78bfa; --out:#34d399; --hit:#fde047;
+  --shadow:0 12px 32px rgba(0,0,0,.5);
+}
+:root[data-theme="light"]{
+  --bg:#f4f6fb; --surface:#fff; --surface-2:#eef2f9; --line:#d3dbe8;
+  --text:#16213a; --muted:#5a6b86; --faint:#8fa0ba;
+  --accent:#0e7490;
+  --crit:#0284c7; --sel:#db2777; --in:#7c3aed; --out:#059669; --hit:#ca8a04;
+  --shadow:0 10px 28px rgba(20,35,60,.16);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--bg);color:var(--text);
+  font:13px/1.45 "DM Sans","Inter","Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+code{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.94em}
+
+/* ---------- header ---------- */
+header{flex:0 0 auto;border-bottom:1px solid var(--line);background:var(--surface)}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 20px}
+.hrow+.hrow{border-top:1px solid var(--line);padding:9px 20px;gap:9px;flex-wrap:wrap}
+h1{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:11.5px;margin-top:2px}
+.sub b{color:var(--text);font-weight:600}
+.spacer{flex:1 1 auto}
+
+.btn{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:8px;
+  padding:5px 10px;font-size:12px;cursor:pointer;white-space:nowrap;
+  transition:background .13s,border-color .13s,color .13s;
+}
+.btn:hover{background:var(--bg);border-color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#04121a;font-weight:600}
+
+#search{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:8px;
+  padding:5px 10px;font-size:12px;min-width:190px;
+}
+#search:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.tglabel{font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.07em;margin-right:1px}
+.chip{
+  border:1px solid var(--line);background:transparent;border-radius:999px;
+  padding:3px 11px;font-size:11.5px;cursor:pointer;
+  transition:background .13s,border-color .13s;
+}
+.chip:hover{background:var(--surface-2)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chip[aria-pressed="true"]{background:var(--surface-2);border-color:currentColor;font-weight:600}
+.chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+
+/* ---------- stage ---------- */
+.stage{flex:1 1 auto;display:flex;min-height:0}
+.graphwrap{flex:1 1 auto;position:relative;min-width:0;overflow:hidden}
+svg#graph{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+svg#graph.grabbing{cursor:grabbing}
+
+/* edges */
+.edge{fill:none;stroke:var(--faint);stroke-width:1.4;opacity:.68;
+      transition:stroke-opacity .14s,stroke-width .14s}
+.edge.crit{stroke:var(--crit);stroke-width:2.6;opacity:.95}
+.edge.dim{stroke-opacity:.05}
+.edge.in{stroke:var(--in);stroke-width:3.4;stroke-opacity:1}
+.edge.out{stroke:var(--out);stroke-width:3.4;stroke-opacity:1}
+.edge.anc{stroke:var(--in);stroke-width:2.4;stroke-opacity:.8}
+
+/* nodes */
+.node{cursor:pointer;transition:opacity .14s}
+.node .card{stroke-width:2}
+.node.dim{opacity:.12}
+.node.sel .card{stroke-width:3.5}
+.node.sel{filter:drop-shadow(0 0 9px color-mix(in srgb,var(--sel) 70%,transparent))}
+.node.nb .card{stroke-width:2.6}
+.node.hit .card{stroke:var(--hit);stroke-width:3.5}
+.node:focus{outline:none}
+.node:focus-visible .card{stroke:var(--hit);stroke-width:3.5}
+.nid{font-size:11px;font-weight:700}
+.ntitle{font-size:11px;fill:var(--text)}
+.nstat{font-size:8.5px;font-weight:700;letter-spacing:.05em;fill:var(--muted)}
+.nmark{font-size:10px}
+.rule{stroke:var(--line);stroke-width:1;opacity:.45}
+.rulertext{font-size:10px;font-weight:700;fill:var(--faint);letter-spacing:.05em}
+.blockedhatch{opacity:0;pointer-events:none}
+body.lens-blocked .blockedhatch{opacity:.5}
+.warn{fill:#f59e0b}
+
+/* ---------- overlay chrome ---------- */
+#zoombar{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:5px;z-index:6}
+#zoombar .btn{width:32px;height:32px;padding:0;font-size:15px;display:grid;place-items:center}
+#minimap{
+  position:absolute;right:12px;bottom:12px;z-index:6;
+  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  border:1px solid var(--line);border-radius:9px;padding:5px;cursor:crosshair;
+}
+#minimap svg{display:block;width:172px;height:118px}
+#selbar{
+  position:absolute;top:12px;left:12px;z-index:6;max-width:min(560px,55%);
+  display:none;align-items:center;gap:9px;
+  background:color-mix(in srgb,var(--surface) 94%,transparent);
+  border:1px solid var(--sel);border-radius:9px;padding:6px 9px;box-shadow:var(--shadow);
+}
+#selbar.on{display:flex}
+#selbar .sb-t{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#selbar .sb-m{font-size:10.5px;color:var(--muted);white-space:nowrap}
+#selbar .btn{padding:2px 7px;font-size:11px}
+#tooltip{
+  position:fixed;z-index:40;pointer-events:none;display:none;max-width:360px;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:9px 11px;font-size:12px;box-shadow:var(--shadow);
+}
+#tooltip .tt{font-weight:700;font-size:12.5px;margin-bottom:3px}
+#tooltip .tm{color:var(--muted);font-size:10.5px;margin-bottom:6px}
+#tooltip .tl{color:var(--faint);font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px}
+
+/* ---------- aside ---------- */
+aside{
+  flex:0 0 306px;border-left:1px solid var(--line);background:var(--surface);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+.panel{border-bottom:1px solid var(--line);padding:13px 16px}
+.panel h2{
+  margin:0 0 9px;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--accent);
+}
+.panel p{margin:0 0 7px;font-size:12px;color:var(--muted)}
+.panel p:last-child{margin-bottom:0}
+.panel .empty{color:var(--faint);font-style:italic}
+.panel ul{margin:0;padding-left:16px}
+.panel li{font-size:12px;color:var(--muted);margin-bottom:7px}
+.panel li:last-child{margin-bottom:0}
+.legend{display:flex;flex-direction:column;gap:7px}
+.lg{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted)}
+.lg b{color:var(--text);font-weight:600}
+.sw{width:15px;height:15px;border-radius:4px;flex:0 0 auto;border:2px solid}
+.sw.dashed{border-style:dashed}
+.sw.dotted{border-style:dotted}
+.ids{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.idbtn{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:6px;
+  padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;
+}
+.idbtn:hover{border-color:var(--accent);background:var(--bg)}
+.idbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px;margin:0 0 9px}
+.dl dt{color:var(--faint);font-size:11px}
+.dl dd{margin:0}
+.dl dd.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11.5px}
+.body-text{font-size:12px;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+.fieldlabel{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint);margin:11px 0 4px}
+.marks{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.tag{font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 7px;text-transform:uppercase;letter-spacing:.03em}
+.tag.runnable{background:rgba(52,211,153,.16);color:var(--out);border:1px solid var(--out)}
+.tag.human{background:rgba(244,114,182,.14);color:var(--sel);border:1px solid var(--sel)}
+.tag.crit{background:rgba(56,189,248,.14);color:var(--crit);border:1px solid var(--crit)}
+.tag.warn{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid #f59e0b}
+.tag.blocked{background:rgba(148,163,184,.13);color:var(--muted);border:1px solid var(--line)}
+.note{border-left:2px solid var(--accent);padding-left:10px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:900px){
+  .stage{flex-direction:column}
+  aside{flex:0 0 40%;border-left:0;border-top:1px solid var(--line)}
+  #minimap{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div style="min-width:0">
+      <h1 id="h-title">Experiment Graph</h1>
+      <div class="sub" id="h-sub"></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-follow" aria-pressed="false" title="Center on the selected node (s)">follow selection</button>
+    <button class="btn" id="btn-fit" title="Fit everything (f)">fit</button>
+    <button class="btn" id="btn-theme" title="Toggle light/dark theme">theme</button>
+  </div>
+  <div class="hrow">
+    <input id="search" type="search" placeholder="search id or title  (/)" aria-label="Search experiment">
+    <span class="tglabel">status</span>
+    <span id="chips-status"></span>
+    <span class="tglabel">lenses</span>
+    <span id="chips-lens"></span>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-clear" title="Clear selection, search and filters (Esc)">clear</button>
+  </div>
+</header>
+
+<div class="stage">
+  <div class="graphwrap">
+    <svg id="graph" role="img" aria-label="Experiment dependency graph"></svg>
+    <div id="selbar" role="status">
+      <span class="sb-t" id="sb-t"></span>
+      <span class="sb-m" id="sb-m"></span>
+      <button class="btn" id="sb-x" title="Clear selection (Esc)" aria-label="Clear selection">✕</button>
+    </div>
+    <div id="zoombar">
+      <button class="btn" id="z-in" title="Zoom in (+)" aria-label="Zoom in">＋</button>
+      <button class="btn" id="z-out" title="Zoom out (−)" aria-label="Zoom out">－</button>
+      <button class="btn" id="z-fit" title="Fit everything (f)" aria-label="Fit">⤢</button>
+    </div>
+    <div id="minimap" title="Click to navigate"><svg id="mm"></svg></div>
+  </div>
+  <aside>
+    <div class="panel" id="p-detail"></div>
+    <div class="panel">
+      <h2>Legend</h2>
+      <div class="legend" id="legend"></div>
+      <p style="margin-top:10px" class="note">
+        Fill and <b>border style</b> encode the status; the label repeats it as text.
+        <b>▶</b> runnable-now · <b>👤</b> human work · <b>⚠</b> anomaly ·
+        thick border = critical path.
+      </p>
+    </div>
+    <div class="panel"><h2>Runnable now</h2><div id="p-runnable"></div></div>
+    <div class="panel"><h2>Critical path</h2><div id="p-crit"></div></div>
+    <div class="panel"><h2>Layers</h2><div id="p-layers"></div></div>
+    <div class="panel"><h2>Status anomalies</h2><div id="p-anom"></div></div>
+  </aside>
+</div>
+
+<div id="tooltip" role="tooltip"></div>
+
+<script type="application/json" id="graph-data">%%GRAPH_DATA%%</script>
+
+<script>
+"use strict";
+(function(){
+/* ==========================================================================
+   0. payload + helpers
+   Everything derived (layers, critical path, runnable, blocked, anomalies)
+   arrives precomputed from model.py. This file never re-derives graph facts.
+   ========================================================================== */
+const DATA = JSON.parse(document.getElementById("graph-data").textContent || "{}");
+const D = DATA.derived || {};
+const NODES = DATA.nodes || [];
+const EDGES = DATA.edges || [];
+const STAGES = DATA.stages || [];
+
+const esc = (s) => String(s == null ? "" : s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+const STATUS = {
+  "completed":       {rgb:"47,158,99",   hex:"#2f9e63", label:"completed",       border:"solid"},
+  "running":         {rgb:"43,127,224",  hex:"#2b7fe0", label:"running",         border:"solid"},
+  "waiting-to-run":  {rgb:"194,118,12",  hex:"#c2760c", label:"waiting to run",  border:"dashed"},
+  "not-implemented": {rgb:"110,123,139", hex:"#6e7b8b", label:"not implemented", border:"dotted"}
+};
+const STATUS_ORDER = ["completed", "running", "waiting-to-run", "not-implemented"];
+const STAGE_COLORS = ["#a78bfa","#38bdf8","#f472b6","#fbbf24","#34d399","#fb923c","#60a5fa","#f87171"];
+
+const byId = new Map(NODES.map((n) => [n.id, n]));
+const INC = new Map(NODES.map((n) => [n.id, []]));
+const OUT = new Map(NODES.map((n) => [n.id, []]));
+EDGES.forEach((e) => { OUT.get(e.f).push(e); INC.get(e.t).push(e); });
+
+const CRIT_EDGE = new Set(EDGES.filter((e) => e.crit).map((e) => e.f + ">" + e.t));
+const CRIT_NODE = new Set(D.critNodes || []);
+const ANCESTRY = D.ancestry || {};
+const RUNNABLE = new Set(D.runnable || []);
+const BLOCKED = new Set(D.blocked || []);
+const ANOMALIES = D.anomalies || [];
+const ANOM_IDS = new Set(ANOMALIES.reduce((a, x) => a.concat(x.ids || []), []));
+const LAYER_COUNT = D.layerCount || 1;
+const stageName = (num) => {
+  const s = STAGES.find((x) => Number(x.n) === Number(num));
+  return s ? `S${num} — ${s.name}` : `S${num}`;
+};
+
+/* ==========================================================================
+   1. geometry — layers flow top -> bottom, siblings barycenter-ordered
+   ========================================================================== */
+const W = 134, H = 56, GAP_X = 22, GAP_Y = 34, PAD = 46;
+
+const byLayer = new Map();
+NODES.forEach((n) => {
+  if(!byLayer.has(n.layer)) byLayer.set(n.layer, []);
+  byLayer.get(n.layer).push(n);
+});
+const LAYERS = Array.from(byLayer.keys()).sort((a, b) => a - b);
+
+const MAX_COLS = Math.max.apply(null, LAYERS.map((l) => byLayer.get(l).length));
+const CONTENT_W = MAX_COLS * W + (MAX_COLS - 1) * GAP_X;
+const CANVAS_W = CONTENT_W + PAD * 2;
+const CANVAS_H = LAYERS.length * H + (LAYERS.length - 1) * GAP_Y + PAD * 2;
+
+// Lay a layer's nodes out from its current order, siblings centred in the canvas.
+function placeLayer(l){
+  const row = byLayer.get(l);
+  const rowW = row.length * W + (row.length - 1) * GAP_X;
+  row.forEach((n, idx) => {
+    n.x = PAD + (CONTENT_W - rowW) / 2 + idx * (W + GAP_X);
+    n.y = PAD + l * (H + GAP_Y);
+    n.cx = n.x + W / 2;
+    n.cy = n.y + H / 2;
+  });
+}
+LAYERS.forEach(placeLayer);
+
+// Barycenter sweeps, alternating down and up, keyed on neighbours' REAL x.
+// Keying on the slot index instead compares parents living in layers of
+// different widths — meaningless, and it pushed E11 624px away from its own
+// parent. Ties fall back to the current order, so the result is deterministic.
+for(let pass = 0; pass < 4; pass++){
+  const down = pass % 2 === 0;
+  const seq = down ? LAYERS : LAYERS.slice().reverse();
+  seq.forEach((l) => {
+    const row = byLayer.get(l);
+    const keyed = row.map((n, i) => {
+      const refs = down ? INC.get(n.id) : OUT.get(n.id);
+      const xs = refs.map((e) => byId.get(down ? e.f : e.t).x);
+      return {n, i, k: xs.length ? xs.reduce((a, c) => a + c, 0) / xs.length : n.x};
+    });
+    keyed.sort((a, b) => (a.k - b.k) || (a.i - b.i));
+    byLayer.set(l, keyed.map((s) => s.n));
+    placeLayer(l);
+  });
+}
+
+/* ==========================================================================
+   2. render
+   ========================================================================== */
+const SVGNS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("graph");
+const el = (tag, attrs) => {
+  const e = document.createElementNS(SVGNS, tag);
+  if(attrs) for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+};
+const measure = document.createElement("canvas").getContext("2d");
+const NODE_FONT = '600 11px "DM Sans","Inter","Segoe UI",sans-serif';
+
+// Word-wrap with a real ellipsis, so a long title degrades readably instead of
+// being blindly truncated at N characters.
+function wrapText(text, maxW, maxLines){
+  measure.font = NODE_FONT;
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = "";
+  for(let i = 0; i < words.length; i++){
+    const test = cur ? cur + " " + words[i] : words[i];
+    if(!cur || measure.measureText(test).width <= maxW) cur = test;
+    else { lines.push(cur); cur = words[i]; if(lines.length === maxLines) break; }
+  }
+  if(lines.length < maxLines && cur) lines.push(cur);
+  const flat = String(text).replace(/\s+/g, " ").trim();
+  if(lines.join(" ").length < flat.length){
+    let last = lines[lines.length - 1] || "";
+    while(last && measure.measureText(last + "…").width > maxW) last = last.slice(0, -1);
+    lines[lines.length - 1] = last + "…";
+  }
+  return lines.slice(0, maxLines);
+}
+
+const viewport = el("g", {id:"viewport"});
+const defs = el("defs");
+[["arr","#5c6b85"], ["arrC","#38bdf8"], ["arrI","#a78bfa"], ["arrO","#34d399"]]
+  .forEach(([id, fill]) => {
+    const m = el("marker", {id, viewBox:"0 0 10 10", refX:"9", refY:"5",
+      markerWidth:"6", markerHeight:"6", orient:"auto-start-reverse"});
+    m.appendChild(el("path", {d:"M0,0 L10,5 L0,10 z", fill}));
+    defs.appendChild(m);
+  });
+(function hatch(){
+  const pat = el("pattern", {id:"hatch", width:7, height:7, patternUnits:"userSpaceOnUse",
+    patternTransform:"rotate(45)"});
+  pat.appendChild(el("rect", {width:7, height:7, fill:"transparent"}));
+  pat.appendChild(el("line", {x1:0, y1:0, x2:0, y2:7, stroke:"#f59e0b",
+    "stroke-width":1.6, "stroke-opacity":.55}));
+  defs.appendChild(pat);
+})();
+svg.appendChild(defs);
+
+// A real rect as the background: clicks need a hit target (the old build used a
+// bare <g>, which is why clearing the selection never worked).
+viewport.appendChild(el("rect", {id:"bg", x:0, y:0, width:CANVAS_W, height:CANVAS_H,
+  fill:"transparent", "pointer-events":"all"}));
+
+LAYERS.forEach((l) => {
+  const y = PAD + l * (H + GAP_Y) + H / 2;
+  viewport.appendChild(el("line", {x1:PAD - 14, y1:y, x2:CANVAS_W - PAD + 14, y2:y, class:"rule"}));
+  const t = el("text", {x:12, y:y + 3.5, class:"rulertext"});
+  t.textContent = "L" + (l + 1);
+  viewport.appendChild(t);
+});
+
+// Fan the anchor points out. A node with 7 outgoing edges must not emit all of
+// them from the same pixel — that bundle is what reads as "embolado". Anchors
+// are spread across the base in the order of where each edge is heading, so the
+// fan opens toward its targets instead of crossing itself.
+const OUT_ANCHOR = new Map(), IN_ANCHOR = new Map();
+function spreadAnchors(list, xOf, into){
+  const sorted = list.slice().sort((a, b) => xOf(a) - xOf(b));
+  const step = Math.min(28, (W - 28) / Math.max(1, sorted.length - 1));
+  const start = W / 2 - (step * (sorted.length - 1)) / 2;
+  sorted.forEach((e, i) => into.set(e, start + i * step));
+}
+NODES.forEach((n) => {
+  spreadAnchors(OUT.get(n.id), (e) => byId.get(e.t).x, OUT_ANCHOR);
+  spreadAnchors(INC.get(n.id), (e) => byId.get(e.f).x, IN_ANCHOR);
+});
+
+const edgeEls = new Map();
+EDGES.forEach((e) => {
+  const a = byId.get(e.f), b = byId.get(e.t);
+  // Layers stack top -> bottom, so an edge leaves the parent's base and lands on
+  // the child's top edge (a vertical spline, not a horizontal one).
+  const x1 = a.x + OUT_ANCHOR.get(e), y1 = a.y + H;
+  const x2 = b.x + IN_ANCHOR.get(e), y2 = b.y;
+  const dy = Math.max(30, y2 - y1);
+  const crit = CRIT_EDGE.has(e.f + ">" + e.t);
+  const p = el("path", {
+    d:`M ${x1} ${y1} C ${x1} ${y1 + dy * 0.55}, ${x2} ${y2 - dy * 0.55}, ${x2} ${y2}`,
+    class:"edge" + (crit ? " crit" : ""),
+    "marker-end":"url(#" + (crit ? "arrC" : "arr") + ")"
+  });
+  viewport.appendChild(p);
+  edgeEls.set(e.f + ">" + e.t, p);
+});
+
+const nodeEls = new Map();
+NODES.forEach((n) => {
+  const s = STATUS[n.status] || STATUS["not-implemented"];
+  const g = el("g", {class:"node", transform:`translate(${n.x},${n.y})`,
+    tabindex:"0", role:"button"});
+  g.setAttribute("aria-label", `${n.id} — ${n.title}. status ${n.status}, ` +
+    `layer ${n.layer + 1}, ${stageName(n.stage)}`);
+
+  const card = el("rect", {class:"card", width:W, height:H, rx:9,
+    fill:`rgba(${s.rgb},.17)`, stroke:s.hex});
+  if(s.border !== "solid") card.setAttribute("stroke-dasharray", s.border === "dashed" ? "6 4" : "2 3.5");
+  g.appendChild(card);
+  g.appendChild(el("rect", {class:"stripe", x:0, y:9, width:3.5, height:H - 18, rx:1.75,
+    fill:STAGE_COLORS[(n.stage - 1) % STAGE_COLORS.length]}));
+  g.appendChild(el("rect", {class:"blockedhatch", width:W, height:H, rx:9, fill:"url(#hatch)"}));
+
+  const idt = el("text", {class:"nid", x:11, y:15.5, fill:s.hex});
+  idt.textContent = n.id;
+  g.appendChild(idt);
+
+  const marks = (n.human ? "👤" : "") + (RUNNABLE.has(n.id) ? " ▶" : "");
+  if(marks.trim()){
+    const mk = el("text", {class:"nmark", x:W - 8, y:15.5, "text-anchor":"end", fill:s.hex});
+    mk.textContent = marks.trim();
+    g.appendChild(mk);
+  }
+  if(ANOM_IDS.has(n.id)){
+    const wn = el("text", {class:"nmark warn", x:W - 8, y:H - 6, "text-anchor":"end"});
+    wn.textContent = "⚠";
+    g.appendChild(wn);
+  }
+
+  wrapText(n.title, W - 22, 2).forEach((ln, i) => {
+    const t = el("text", {class:"ntitle", x:11, y:29 + i * 12});
+    t.textContent = ln;
+    g.appendChild(t);
+  });
+  const st = el("text", {class:"nstat", x:11, y:H - 5});
+  st.textContent = s.label;
+  g.appendChild(st);
+
+  g.addEventListener("pointerenter", (ev) => { if(ev.pointerType === "mouse") showTip(n, ev); });
+  g.addEventListener("pointermove", (ev) => { if(ev.pointerType === "mouse") moveTip(ev); });
+  g.addEventListener("pointerleave", hideTip);
+  g.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if(dragMoved) return;
+    if(selected === n.id) clearSelection(); else select(n.id);   // click again toggles off
+  });
+  g.addEventListener("keydown", (ev) => {
+    if(ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); select(n.id); }
+    else if(ev.key === "Escape") clearSelection();
+    else if(ev.key.indexOf("Arrow") === 0){ ev.preventDefault(); moveFocus(n, ev.key); }
+  });
+
+  viewport.appendChild(g);
+  nodeEls.set(n.id, g);
+  n.el = g;
+});
+svg.appendChild(viewport);
+
+/* ==========================================================================
+   3. view — zoom, pan, fit, minimap
+   ========================================================================== */
+let cur = {k:1, tx:0, ty:0};
+const wrapEl = document.querySelector(".graphwrap");
+const mm = document.getElementById("mm");
+const mmViewport = el("rect", {fill:"transparent", stroke:"#22d3ee", "stroke-width":1.5});
+let mmScale = 1;
+
+function clampView(){
+  const r = wrapEl.getBoundingClientRect();
+  const w = CANVAS_W * cur.k, h = CANVAS_H * cur.k, pad = 40;
+  cur.tx = w <= r.width ? (r.width - w) / 2 : Math.min(pad, Math.max(r.width - w - pad, cur.tx));
+  cur.ty = h <= r.height ? (r.height - h) / 2 : Math.min(pad, Math.max(r.height - h - pad, cur.ty));
+}
+
+function applyView(){
+  clampView();
+  viewport.setAttribute("transform", `translate(${cur.tx} ${cur.ty}) scale(${cur.k})`);
+  const r = wrapEl.getBoundingClientRect();
+  mmViewport.setAttribute("x", (-cur.tx / cur.k) * mmScale);
+  mmViewport.setAttribute("y", (-cur.ty / cur.k) * mmScale);
+  mmViewport.setAttribute("width", (r.width / cur.k) * mmScale);
+  mmViewport.setAttribute("height", (r.height / cur.k) * mmScale);
+}
+
+function fit(){
+  const r = wrapEl.getBoundingClientRect();
+  if(!r.width || !r.height) return;
+  cur.k = Math.min(r.width / CANVAS_W, r.height / CANVAS_H) * 0.96;
+  cur.tx = (r.width - CANVAS_W * cur.k) / 2;
+  cur.ty = (r.height - CANVAS_H * cur.k) / 2;
+  applyView();
+}
+
+function zoomAt(px, py, factor){
+  const r = wrapEl.getBoundingClientRect();
+  const cx = (px - r.left - cur.tx) / cur.k, cy = (py - r.top - cur.ty) / cur.k;
+  cur.k = Math.max(0.15, Math.min(5, cur.k * factor));
+  cur.tx = px - r.left - cx * cur.k;
+  cur.ty = py - r.top - cy * cur.k;
+  applyView();
+}
+
+// Frame a canvas rect, zooming in only when we are further out than 1:1.
+// Never zooms out on selection — the old build yanked the viewport away.
+function focusRect(x, y, w, h){
+  if(!follow) return;
+  const r = wrapEl.getBoundingClientRect();
+  if(!r.width) return;
+  const target = Math.min(1.25, Math.min(r.width / (w + 180), r.height / (h + 180)));
+  if(target > cur.k) cur.k = target;
+  cur.tx = r.width / 2 - (x + w / 2) * cur.k;
+  cur.ty = r.height / 2 - (y + h / 2) * cur.k;
+  applyView();
+}
+
+let dragMoved = false;
+const pointers = new Map();
+let panFrom = null, pinchFrom = null;
+
+svg.addEventListener("pointerdown", (ev) => {
+  if(ev.target.closest && ev.target.closest(".node")) return;
+  pointers.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+  svg.setPointerCapture(ev.pointerId);
+  if(pointers.size === 1){ panFrom = {x:ev.clientX, y:ev.clientY}; dragMoved = false; }
+  else if(pointers.size === 2){
+    const [a, b] = Array.from(pointers.values());
+    pinchFrom = {d:Math.hypot(a.x - b.x, a.y - b.y), k:cur.k, mx:(a.x + b.x) / 2, my:(a.y + b.y) / 2};
+    panFrom = null;
+  }
+  svg.classList.add("grabbing");
+});
+
+svg.addEventListener("pointermove", (ev) => {
+  if(!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+  if(pinchFrom && pointers.size >= 2){
+    const [a, b] = Array.from(pointers.values());
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    zoomAt(mx, my, Math.max(0.15, Math.min(5, pinchFrom.k * (d / (pinchFrom.d || d)))) / cur.k);
+    cur.tx += mx - pinchFrom.mx; cur.ty += my - pinchFrom.my;
+    pinchFrom.mx = mx; pinchFrom.my = my;
+    applyView(); dragMoved = true;
+    return;
+  }
+  if(!panFrom) return;
+  const dx = ev.clientX - panFrom.x, dy = ev.clientY - panFrom.y;
+  if(!dragMoved && Math.hypot(dx, dy) > 4) dragMoved = true;
+  if(dragMoved){ cur.tx += dx; cur.ty += dy; panFrom = {x:ev.clientX, y:ev.clientY}; applyView(); }
+});
+
+function endPointer(ev){
+  pointers.delete(ev.pointerId);
+  if(pointers.size < 2) pinchFrom = null;
+  if(pointers.size === 0){
+    panFrom = null;
+    svg.classList.remove("grabbing");
+    setTimeout(() => { dragMoved = false; }, 0);   // let the click read the flag first
+  }
+}
+svg.addEventListener("pointerup", endPointer);
+svg.addEventListener("pointercancel", endPointer);
+
+svg.addEventListener("click", (ev) => {
+  if(dragMoved) return;
+  if(ev.target.closest && ev.target.closest(".node")) return;
+  clearSelection();
+});
+svg.addEventListener("dblclick", fit);
+svg.addEventListener("wheel", (ev) => {
+  ev.preventDefault();
+  zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.14 : 0.88);
+}, {passive:false});
+
+(function buildMinimap(){
+  const box = {w:172, h:118};
+  mmScale = Math.min((box.w - 8) / CANVAS_W, (box.h - 8) / CANVAS_H);
+  mm.setAttribute("viewBox", `0 0 ${box.w} ${box.h}`);
+  const g = el("g", {transform:`translate(${(box.w - CANVAS_W * mmScale) / 2},` +
+    `${(box.h - CANVAS_H * mmScale) / 2}) scale(${mmScale})`});
+  NODES.forEach((n) => g.appendChild(el("rect", {x:n.x, y:n.y, width:W, height:H, rx:14,
+    fill:(STATUS[n.status] || STATUS["not-implemented"]).hex, "fill-opacity":.72})));
+  mm.appendChild(g);
+  mm.appendChild(mmViewport);
+  const jump = (ev) => {
+    const r = mm.getBoundingClientRect(), scale = box.w / r.width;
+    const px = (ev.clientX - r.left) * scale, py = (ev.clientY - r.top) * scale;
+    const cx = px / mmScale - (box.w - CANVAS_W * mmScale) / (2 * mmScale);
+    const cy = py / mmScale - (box.h - CANVAS_H * mmScale) / (2 * mmScale);
+    const wr = wrapEl.getBoundingClientRect();
+    cur.tx = wr.width / 2 - cx * cur.k;
+    cur.ty = wr.height / 2 - cy * cur.k;
+    applyView();
+  };
+  let down = false;
+  mm.addEventListener("pointerdown", (ev) => { down = true; mm.setPointerCapture(ev.pointerId); jump(ev); });
+  mm.addEventListener("pointermove", (ev) => { if(down) jump(ev); });
+  mm.addEventListener("pointerup", () => { down = false; });
+})();
+
+/* ==========================================================================
+   4. selection + lenses + search
+   ========================================================================== */
+// `follow` is OFF by default: selecting a node must never move the viewport out
+// from under the cursor. Opt in with the header toggle (s) if you want framing.
+let selected = null, follow = false, searchTerm = "";
+const lenses = new Set();
+const neighborsOf = (id) => {
+  const s = new Set();
+  INC.get(id).forEach((e) => s.add(e.f));
+  OUT.get(id).forEach((e) => s.add(e.t));
+  return s;
+};
+
+// Full transitive chain (ancestors + descendants) is computed in model.py and
+// shipped in the payload — the template must not re-derive graph facts.
+
+// The full chain that leads to the node, plus everything it unblocks. Selecting
+// a node shows its reasoning path, not just its immediate parents.
+function chainOf(id){
+  const a = ANCESTRY[id] || {anc: [], desc: [], edges: []};
+  const set = new Set([id].concat(a.anc, a.desc));
+  return {set, edges: new Set(a.edges)};
+}
+
+function select(id){
+  selected = id;
+  paint();
+  const n = byId.get(id);
+  if(!n) return;
+  const group = Array.from(chainOf(id).set).map((i) => byId.get(i)).filter(Boolean);
+  const x0 = Math.min.apply(null, group.map((m) => m.x)) - 40;
+  const y0 = Math.min.apply(null, group.map((m) => m.y)) - 40;
+  const x1 = Math.max.apply(null, group.map((m) => m.x + W)) + 40;
+  const y1 = Math.max.apply(null, group.map((m) => m.y + H)) + 40;
+  focusRect(x0, y0, x1 - x0, y1 - y0);
+}
+function clearSelection(){ selected = null; paint(); }
+
+// One rule for lenses: a node passes if it satisfies ANY active lens (union).
+function lensPass(n){
+  if(!lenses.size) return true;
+  for(const l of lenses){
+    if(l === "runnable" && RUNNABLE.has(n.id)) return true;
+    if(l === "crit" && CRIT_NODE.has(n.id)) return true;
+    if(l === "human" && n.human) return true;
+    if(l === "blocked" && BLOCKED.has(n.id)) return true;
+    if(l.indexOf("st:") === 0 && n.status === l.slice(3)) return true;
+  }
+  return false;
+}
+
+function paint(){
+  const chain = selected ? chainOf(selected) : null;
+  NODES.forEach((n) => {
+    const g = n.el;
+    let dim = !lensPass(n);
+    if(chain) dim = dim || !chain.set.has(n.id);
+    g.classList.toggle("dim", dim);
+    g.classList.toggle("sel", n.id === selected);
+    g.classList.toggle("nb", !!chain && chain.set.has(n.id) && n.id !== selected);
+    g.classList.toggle("hit", !!searchTerm && matches(n));
+  });
+  EDGES.forEach((e) => {
+    const key = e.f + ">" + e.t, p = edgeEls.get(key);
+    let dim = !(lensPass(byId.get(e.f)) && lensPass(byId.get(e.t)));
+    if(chain) dim = dim || !chain.edges.has(key);
+    const isIn = selected === e.t, isOut = selected === e.f;
+    const isAnc = !!chain && chain.edges.has(key) && !isIn && !isOut;
+    p.classList.toggle("dim", dim);
+    p.classList.toggle("in", isIn);
+    p.classList.toggle("out", isOut);
+    p.classList.toggle("anc", isAnc);
+    p.setAttribute("marker-end", "url(#" + (isIn ? "arrI" : isOut ? "arrO"
+      : CRIT_EDGE.has(key) ? "arrC" : "arr") + ")");
+  });
+  paintSelbar();
+  paintDetail();
+}
+
+function paintSelbar(){
+  const bar = document.getElementById("selbar");
+  bar.classList.toggle("on", !!selected);
+  if(!selected) return;
+  const n = byId.get(selected);
+  const a = ANCESTRY[selected] || {anc: [], desc: []};
+  document.getElementById("sb-t").textContent = `${n.id} — ${n.title}`;
+  document.getElementById("sb-m").textContent =
+    `full chain · ${a.anc.length} above · ${a.desc.length} below`;
+}
+
+function tagFor(id){
+  const out = [];
+  if(RUNNABLE.has(id)) out.push('<span class="tag runnable">runnable now</span>');
+  if(byId.get(id).human) out.push('<span class="tag human">👤 human</span>');
+  if(CRIT_NODE.has(id)) out.push('<span class="tag crit">critical path</span>');
+  if(BLOCKED.has(id)) out.push('<span class="tag blocked">blocked</span>');
+  if(ANOM_IDS.has(id)) out.push('<span class="tag warn">⚠ anomaly</span>');
+  return out.length ? `<div class="marks">${out.join("")}</div>` : "";
+}
+
+function paintDetail(){
+  const p = document.getElementById("p-detail");
+  if(!selected){
+    p.innerHTML = `<h2>Detail</h2><p class="empty">Click an experiment to see its
+      goals, result and connections. Click the background, the <b>✕</b> or press <b>Esc</b>
+      to clear.</p>`;
+    return;
+  }
+  const n = byId.get(selected), s = STATUS[n.status] || STATUS["not-implemented"];
+  const ids = (list) => list.length
+    ? `<div class="ids">${list.map((i) =>
+        `<button class="idbtn" data-go="${esc(i)}">${esc(i)}</button>`).join("")}</div>`
+    : "";
+  p.innerHTML = `<h2>Detail</h2>
+    <dl class="dl">
+      <dt>status</dt><dd class="mono" style="color:${s.hex}">${esc(n.status)}</dd>
+      <dt>layer</dt><dd>L${n.layer + 1} of ${LAYER_COUNT}</dd>
+      <dt>stage</dt><dd>${esc(stageName(n.stage))}</dd>
+    </dl>
+    ${tagFor(n.id)}
+    <div class="fieldlabel">Goals</div>
+    <div class="body-text">${esc(n.goals) || "<i>not recorded in the doc</i>"}</div>
+    <div class="fieldlabel">Result</div>
+    <div class="body-text">${esc(n.result) || "<i>—</i>"}</div>
+    ${INC.get(n.id).length ? `<div class="fieldlabel">Blocked by</div>` +
+      ids(INC.get(n.id).map((e) => e.f)) : ""}
+    ${OUT.get(n.id).length ? `<div class="fieldlabel">Unblocks</div>` +
+      ids(OUT.get(n.id).map((e) => e.t)) : ""}`;
+}
+
+const tip = document.getElementById("tooltip");
+function showTip(n, ev){
+  const s = STATUS[n.status] || STATUS["not-implemented"];
+  tip.innerHTML = `<div class="tt">${n.human ? "👤 " : ""}${esc(n.id)} — ${esc(n.title)}</div>
+    <div class="tm">status <b style="color:${s.hex}">${esc(n.status)}</b> · layer ${n.layer + 1} ·
+      ${esc(stageName(n.stage))}</div>
+    ${n.goals ? `<div class="tl">Goals</div><div>${esc(n.goals)}</div>` : ""}
+    ${n.result ? `<div class="tl">Result</div><div>${esc(n.result.slice(0, 260))}` +
+      `${n.result.length > 260 ? "…" : ""}</div>` : ""}
+    <div class="tm" style="margin:7px 0 0">click to pin in the side panel</div>`;
+  tip.style.display = "block";
+  moveTip(ev);
+}
+function moveTip(ev){
+  const pad = 16, r = tip.getBoundingClientRect();
+  let x = ev.clientX + pad, y = ev.clientY - 10;
+  if(x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - pad;
+  if(y + r.height > window.innerHeight - 8) y = Math.max(8, window.innerHeight - r.height - 8);
+  tip.style.left = x + "px";
+  tip.style.top = y + "px";
+}
+function hideTip(){ tip.style.display = "none"; }
+
+const matches = (n) => n.id.toLowerCase().indexOf(searchTerm) === 0 ||
+  n.title.toLowerCase().indexOf(searchTerm) !== -1;
+const searchInput = document.getElementById("search");
+searchInput.addEventListener("input", () => { searchTerm = searchInput.value.trim().toLowerCase(); paint(); });
+searchInput.addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter" && searchTerm){
+    const hit = NODES.filter(matches)[0];
+    if(hit){ select(hit.id); nodeEls.get(hit.id).focus(); }
+  }
+  if(ev.key === "Escape"){
+    searchInput.value = ""; searchTerm = ""; paint(); searchInput.blur();
+  }
+});
+
+function moveFocus(from, key){
+  const dirs = {ArrowRight:[1,0], ArrowLeft:[-1,0], ArrowDown:[0,1], ArrowUp:[0,-1]};
+  const [dx, dy] = dirs[key];
+  let best = null, bestScore = Infinity;
+  NODES.forEach((n) => {
+    if(n.id === from.id) return;
+    const vx = n.cx - from.cx, vy = n.cy - from.cy;
+    const proj = vx * dx + vy * dy;
+    if(proj <= 8) return;
+    const score = proj + Math.abs(vx * dy - vy * dx) * 2.2;
+    if(score < bestScore){ bestScore = score; best = n; }
+  });
+  if(best) nodeEls.get(best.id).focus();
+}
+
+/* ==========================================================================
+   5. panels + controls
+   ========================================================================== */
+const idButtons = (ids) => ids.length
+  ? `<div class="ids">${ids.map((i) =>
+      `<button class="idbtn" data-go="${esc(i)}">${esc(i)}</button>`).join("")}</div>`
+  : "";
+const byNum = (a, b) => a.num - b.num;
+
+function renderPanels(){
+  const h1 = "Experiment Graph" + (DATA.title ? " — " + DATA.title : "");
+  document.getElementById("h-title").textContent = h1;
+  document.title = h1;
+  document.getElementById("h-sub").innerHTML =
+    (DATA.source ? `source doc: <code>${esc(DATA.source)}</code> · ` : "") +
+    `<b>${NODES.length}</b> experiments · <b>${EDGES.length}</b> dependencies · ` +
+    `<b>${LAYER_COUNT}</b> derived layers · statuses read literally from the doc`;
+
+  const counts = {};
+  NODES.forEach((n) => { counts[n.status] = (counts[n.status] || 0) + 1; });
+  document.getElementById("legend").innerHTML = STATUS_ORDER.filter((s) => counts[s])
+    .map((s) => {
+      const st = STATUS[s], dash = st.border === "solid" ? "" : st.border;
+      return `<div class="lg"><span class="sw ${dash}"
+        style="border-color:${st.hex};background:rgba(${st.rgb},.17)"></span>
+        <span><b>${esc(s)}</b> — ${esc(st.label)} (${counts[s]})</span></div>`;
+    }).join("");
+
+  const run = NODES.filter((n) => RUNNABLE.has(n.id)).sort(byNum);
+  document.getElementById("p-runnable").innerHTML = run.length
+    ? `<p>All direct blockers <b>completed</b> — can run now:</p>` +
+      idButtons(run.map((n) => n.id))
+    : `<p class="empty">No experiment has all direct blockers satisfied.</p>`;
+
+  document.getElementById("p-crit").innerHTML =
+    (D.notes && D.notes.critical ? `<p class="note">${D.notes.critical}</p>` : "") +
+    `<p>${(D.critDepth || 0) + 1} nodes on the longest path (L1 → L${LAYER_COUNT}).</p>` +
+    idButtons(NODES.filter((n) => CRIT_NODE.has(n.id)).sort((a, b) =>
+      (a.layer - b.layer) || (a.num - b.num)).map((n) => n.id));
+
+  document.getElementById("p-layers").innerHTML =
+    (D.notes && D.notes.layers ? `<p class="note">${D.notes.layers}</p>` : "") +
+    `<p>${LAYERS.map((l) => `L${l + 1}: ${byLayer.get(l).length}`).join(" · ")}</p>`;
+
+  document.getElementById("p-anom").innerHTML = ANOMALIES.length
+    ? `<ul>${ANOMALIES.map((a) => `<li>${a.text}</li>`).join("")}</ul>
+       <p style="margin-top:9px">Reflected literally from the doc — never silently corrected.</p>`
+    : `<p class="empty">No status inconsistency found in the doc.</p>`;
+
+  document.getElementById("chips-status").innerHTML = STATUS_ORDER.map((s) =>
+    `<button class="chip" data-lens="st:${s}" aria-pressed="false">
+      <span class="dot" style="background:${STATUS[s].hex}"></span>${esc(s)}</button>`).join(" ");
+  document.getElementById("chips-lens").innerHTML =
+    [["runnable","▶ runnable"], ["crit","critical path"], ["human","👤 human"], ["blocked","blocked"]]
+      .map(([k, lbl]) => `<button class="chip" data-lens="${k}" aria-pressed="false">${esc(lbl)}</button>`)
+      .join(" ");
+
+  document.querySelectorAll("[data-lens]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const l = b.dataset.lens;
+      if(lenses.has(l)) lenses.delete(l); else lenses.add(l);
+      b.setAttribute("aria-pressed", lenses.has(l) ? "true" : "false");
+      document.body.classList.toggle("lens-blocked", lenses.has("blocked"));
+      paint();
+    });
+  });
+  // Any id chip in the aside jumps to that node.
+  document.querySelector("aside").addEventListener("click", (ev) => {
+    const t = ev.target.closest("[data-go]");
+    if(!t) return;
+    select(t.dataset.go);
+    const target = nodeEls.get(t.dataset.go);
+    if(target) target.focus({preventScroll:true});
+  });
+}
+
+const zoomCenter = (factor) => {
+  const r = wrapEl.getBoundingClientRect();
+  zoomAt(r.left + r.width / 2, r.top + r.height / 2, factor);
+};
+document.getElementById("z-in").addEventListener("click", () => zoomCenter(1.28));
+document.getElementById("z-out").addEventListener("click", () => zoomCenter(0.78));
+document.getElementById("z-fit").addEventListener("click", fit);
+document.getElementById("btn-fit").addEventListener("click", fit);
+document.getElementById("sb-x").addEventListener("click", clearSelection);
+document.getElementById("btn-clear").addEventListener("click", () => {
+  clearSelection();
+  searchInput.value = ""; searchTerm = "";
+  lenses.clear();
+  document.querySelectorAll("[data-lens]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  document.body.classList.remove("lens-blocked");
+  paint();
+});
+const followBtn = document.getElementById("btn-follow");
+followBtn.addEventListener("click", () => {
+  follow = !follow;
+  followBtn.setAttribute("aria-pressed", follow ? "true" : "false");
+});
+document.getElementById("btn-theme").addEventListener("click", () => {
+  const root = document.documentElement;
+  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+});
+
+document.addEventListener("keydown", (ev) => {
+  if(ev.target === searchInput) return;
+  const k = ev.key.toLowerCase();
+  if(ev.key === "Escape"){ clearSelection(); hideTip(); }
+  else if(k === "r"){ fit(); clearSelection(); }
+  else if(k === "f"){ fit(); }
+  else if(k === "s"){ followBtn.click(); }
+  else if(ev.key === "/"){ ev.preventDefault(); searchInput.focus(); }
+  else if(ev.key === "+" || ev.key === "=") zoomCenter(1.28);
+  else if(ev.key === "-") zoomCenter(0.78);
+});
+
+/* ==========================================================================
+   6. init
+   ========================================================================== */
+renderPanels();
+paint();
+requestAnimationFrame(() => { fit(); });
+window.addEventListener("resize", applyView);
+})();
+</script>
+</body>
+</html>

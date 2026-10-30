@@ -1,0 +1,5 @@
+{
+  "//": "Flat script directory: modules import each other by bare name and the entry points (render.py, test_model.py) add this directory to sys.path. extraPaths makes the editor agree with the runtime.",
+  "extraPaths": ["."],
+  "pythonVersion": "3.10"
+}

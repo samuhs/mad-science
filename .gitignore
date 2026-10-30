@@ -1,0 +1,33 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Coverage / build
+coverage/
+coverage.xml
+htmlcov/
+.pytest_cache/
+dist/
+build/
+
+# Data / generated notebooks
+*.pkl
+*.joblib
+*.h5
+*.parquet
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

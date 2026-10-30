@@ -1,0 +1,21 @@
+{
+  "name": "mad-science",
+  "version": "0.1.0",
+  "description": "Hypothesis-driven data science skills: sharpen a hypothesis, write the experiment contract, slice it into a pipeline, implement it expectation-first in notebooks, review it, and turn results into an article.",
+  "author": {
+    "name": "samuhs",
+    "url": "https://github.com/samuhs"
+  },
+  "homepage": "https://github.com/samuhs/mad-science",
+  "repository": "https://github.com/samuhs/mad-science",
+  "license": "MIT",
+  "keywords": [
+    "data-science",
+    "experiments",
+    "hypothesis",
+    "notebooks",
+    "scientific-method",
+    "research",
+    "skills"
+  ]
+}
