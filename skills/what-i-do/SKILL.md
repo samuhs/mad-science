@@ -1,6 +1,6 @@
 ---
 name: what-i-do
-description: Orientation map for the experiment workflow. Use when the user asks how this repo's data-science skills fit together, which command to invoke next, or needs a quick overview of the flow.
+description: "Orientation map and canonical catalogue of the mad-science data science skills. Use when the user asks how the skills fit together, which command to run next, where to start an experiment, or needs a quick overview of the hypothesis-to-notebook flow."
 mode: true
 icon: crown
 color: purple

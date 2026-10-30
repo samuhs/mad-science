@@ -1,6 +1,6 @@
 ---
 name: hypothesys
-description: Grill the user relentlessly about a hypothesis and its premises. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.
+description: "Grill the user relentlessly about a data science or ML hypothesis until it is clear, falsifiable and tied to goal metrics: premises, baseline and success criteria. Use when starting an experiment, when the user wants to stress-test a hypothesis or idea, or says 'grill me', 'challenge my hypothesis' or 'is this testable'."
 mode: true
 icon: crown
 color: green

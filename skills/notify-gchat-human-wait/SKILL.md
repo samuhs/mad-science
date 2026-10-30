@@ -1,6 +1,6 @@
 ---
 name: notify-gchat-human-wait
-description: "Send a text card to the configured Google Chat webhook when the Claude turn is waiting for human input. Sends the open question and the project name from the webhook set in .env (GCHAT_WEBHOOK_URL)."
+description: "Send a Google Chat card through the webhook set in .env (GCHAT_WEBHOOK_URL) when the agent is waiting for human input, with the open question and the project name. Use to get pinged during long agent sessions, or when the user asks for Google Chat notifications."
 ---
 
 # Send Google Chat notification — human waiting

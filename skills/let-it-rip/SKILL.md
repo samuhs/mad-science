@@ -1,6 +1,6 @@
 ---
 name: let-it-rip
-description: Implement or fix an experiment based on its doc.
+description: "Implement or fix an experiment in a Jupyter notebook from its experiment doc and pipeline, expectation-first: run every cell, review the result with /exp-review, then commit. Use when the experiment is planned and it is time to write the code."
 disable-model-invocation: true
 mode: true
 icon: crown

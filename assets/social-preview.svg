@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <rect width="1280" height="640" fill="#0f172a"/>
+  <rect x="0" y="0" width="1280" height="8" fill="#22d3ee"/>
+  <text x="96" y="210" font-family="Helvetica, Arial, sans-serif" font-size="104" font-weight="700" fill="#f8fafc">mad-science</text>
+  <text x="96" y="280" font-family="Helvetica, Arial, sans-serif" font-size="40" fill="#cbd5e1">Hypothesis-driven data science skills for coding agents</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="26" fill="#22d3ee">
+    <text x="96" y="380">/hypothesys → /to-doc → /experiment-pipeline</text>
+    <text x="96" y="422">→ /let-it-rip → /exp-review</text>
+  </g>
+  <text x="96" y="520" font-family="Helvetica, Arial, sans-serif" font-size="28" fill="#94a3b8">Claude Code · Codex · GitHub Copilot · Cursor · Gemini CLI</text>
+  <text x="96" y="572" font-family="Menlo, Consolas, monospace" font-size="26" fill="#64748b">npx skills add samuhs/mad-science</text>
+</svg>
