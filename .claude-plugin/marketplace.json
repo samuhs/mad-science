@@ -13,10 +13,17 @@
       "category": "data-science",
       "keywords": [
         "data-science",
+        "machine-learning",
         "experiments",
         "hypothesis",
+        "hypothesis-testing",
+        "scientific-method",
+        "jupyter",
         "notebooks",
-        "research"
+        "reproducibility",
+        "research",
+        "mlops",
+        "agent-skills"
       ]
     }
   ]

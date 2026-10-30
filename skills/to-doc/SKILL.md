@@ -1,6 +1,6 @@
 ---
 name: to-doc
-description: Turn the current conversation into a doc and publish it to the project issue tracker: no interview, just synthesis of what you've already discussed.
+description: "Turn the current conversation into an experiment doc (hypothesis, premises, baseline, success metrics, experiment stories) and publish it to the project docs, with no new interview. Use after /hypothesys, or when the user says 'write the experiment doc', 'document this experiment' or 'turn this into a doc'."
 mode: true
 icon: crown
 color: red

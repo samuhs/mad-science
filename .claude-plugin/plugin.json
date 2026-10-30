@@ -11,11 +11,16 @@
   "license": "MIT",
   "keywords": [
     "data-science",
+    "machine-learning",
     "experiments",
     "hypothesis",
-    "notebooks",
+    "hypothesis-testing",
     "scientific-method",
+    "jupyter",
+    "notebooks",
+    "reproducibility",
     "research",
-    "skills"
+    "mlops",
+    "agent-skills"
   ]
 }

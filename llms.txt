@@ -1,0 +1,33 @@
+# mad-science
+
+> Hypothesis-driven data science and machine learning experiment skills (Agent Skills, SKILL.md format) for coding agents: Claude Code, Codex, GitHub Copilot, Cursor, Gemini CLI and any agent supported by skills.sh. The flow takes a raw idea to a falsifiable hypothesis, an experiment contract, tracked slices, expectation-first Jupyter notebooks, a review gate and, optionally, a scientific article.
+
+Install with `npx skills add samuhs/mad-science`, or as a plugin with `claude plugin marketplace add samuhs/mad-science` then `claude plugin install mad-science@samuhs`. Run `/mad-science-setup` once per repo, then start with `/hypothesys`. MIT licensed.
+
+## Docs
+
+- [README](https://github.com/samuhs/mad-science/blob/main/README.md): installation for every agent, the flow, the catalogue and the FAQ
+- [what-i-do](https://github.com/samuhs/mad-science/blob/main/skills/what-i-do/SKILL.md): canonical skill catalogue and flow checks
+- [skills.sh listing](https://skills.sh/samuhs/mad-science): install counts and per-skill pages
+
+## Main flow
+
+- [hypothesys](https://github.com/samuhs/mad-science/blob/main/skills/hypothesys/SKILL.md): interview that makes a data science hypothesis falsifiable, with premises, baseline and success metric
+- [to-doc](https://github.com/samuhs/mad-science/blob/main/skills/to-doc/SKILL.md): turns the discussion into an experiment doc (the experiment contract)
+- [experiment-pipeline](https://github.com/samuhs/mad-science/blob/main/skills/experiment-pipeline/SKILL.md): slices the doc into tracked experiments with status and dependencies
+- [let-it-rip](https://github.com/samuhs/mad-science/blob/main/skills/let-it-rip/SKILL.md): implements each experiment in a Jupyter notebook, expectation-first
+- [exp-review](https://github.com/samuhs/mad-science/blob/main/skills/exp-review/SKILL.md): reviews notebooks for standards, reproducibility, data leakage and security
+
+## Reference skills
+
+- [expectation-driven-science](https://github.com/samuhs/mad-science/blob/main/skills/expectation-driven-science/SKILL.md): hypothesis, prediction, verification; TDD for science
+- [developing-data-science-notebooks](https://github.com/samuhs/mad-science/blob/main/skills/developing-data-science-notebooks/SKILL.md): production-grade notebook practices
+- [literature-research](https://github.com/samuhs/mad-science/blob/main/skills/literature-research/SKILL.md): state-of-the-art research saved as Markdown
+- [to-article](https://github.com/samuhs/mad-science/blob/main/skills/to-article/SKILL.md): writes or reviews a computer science article from the results
+- [critic-review](https://github.com/samuhs/mad-science/blob/main/skills/critic-review/SKILL.md): critical review of the whole project against the state of the art
+
+## Optional
+
+- [mad-science-setup](https://github.com/samuhs/mad-science/blob/main/skills/mad-science-setup/SKILL.md): one-time repo setup
+- [experiment-graph](https://github.com/samuhs/mad-science/blob/main/skills/experiment-graph/SKILL.md): interactive graph of the experiment pipeline
+- [notify-gchat-human-wait](https://github.com/samuhs/mad-science/blob/main/skills/notify-gchat-human-wait/SKILL.md): Google Chat ping when the agent waits for a human

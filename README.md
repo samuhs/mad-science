@@ -8,6 +8,48 @@
 > GitHub Copilot, Cursor, Gemini CLI and more). They take a raw idea all the way to
 > a validated, reviewed notebook and, when it earns it, to a paper.
 
+**mad-science** is a set of 14 [Agent Skills](https://skills.sh/samuhs/mad-science)
+that teach a coding agent to run machine learning and data science experiments the
+way a careful scientist would: state a falsifiable hypothesis, write down the
+expected result before looking at the data, implement the experiment in a Jupyter
+notebook, and review it for reproducibility, data leakage and weak evidence before
+trusting the numbers.
+
+## Why
+
+Coding agents are fast at writing notebooks and bad at doubting them. Left alone,
+they tune until a metric looks good and report it. mad-science adds the missing
+discipline:
+
+- **Hypothesis first.** `/hypothesys` interviews you until the idea has premises,
+  a baseline and a success metric you can fail.
+- **Expectations before results.** `/expectation-driven-science` applies the TDD
+  idea to analysis: predict, then verify.
+- **Small, tracked slices.** `/experiment-pipeline` splits the work into
+  experiments with status and dependencies, so nothing runs out of order.
+- **A review gate.** `/exp-review` checks every notebook for reproducibility
+  (fixed seeds, pinned dependencies), security, data leakage and code quality.
+- **Paper-ready output.** `/to-article` turns the results into a structured
+  scientific article.
+
+## What a session looks like
+
+```text
+you   > /hypothesys Adding weather features will improve next-day demand forecasts.
+
+agent > ❓ Q1 - Baseline: what does the current forecast use, and what is its
+        error today?
+        ➡️ Recommended: the production model's MAPE over the last 90 days.
+
+        ❓ Q2 - Success metric: how much better counts as "improve"?
+        ➡️ Recommended: at least 2 points lower MAPE on a time-based holdout.
+        ...
+```
+
+When the interview ends, `/to-doc` writes the experiment contract,
+`/experiment-pipeline` slices it, and `/let-it-rip` implements each slice in a
+notebook that `/exp-review` must pass.
+
 ## Installation
 
 A plugin updates itself. [skills.sh](https://skills.sh/samuhs/mad-science) copies
@@ -134,6 +176,32 @@ way TDD does for code.
 | I finished an experiment and want a review | `/exp-review` |
 | I want to turn the results into a paper | `/to-article` |
 
+## FAQ
+
+**What are Agent Skills?**
+Folders with a `SKILL.md` file that a coding agent loads on demand. Each skill
+describes when to use it and how to do one job. Claude Code, Codex, GitHub
+Copilot, Cursor and Gemini CLI all read the same format.
+
+**Which agents does mad-science work with?**
+Claude Code, Codex and GitHub Copilot through the plugin marketplace, Cursor as a
+plugin, Gemini CLI through `gemini skills install`, and any other agent supported
+by [skills.sh](https://skills.sh/samuhs/mad-science) (OpenCode, Windsurf, Amp, ...).
+
+**How do I make a coding agent run reproducible ML experiments?**
+Install the skills, run `/mad-science-setup` once, then start with `/hypothesys`.
+The flow forces fixed seeds, pinned dependencies and a written expectation before
+each result, and `/exp-review` blocks notebooks that fail those checks.
+
+**Do I need Jupyter?**
+The implementation skills (`/let-it-rip`, `/developing-data-science-notebooks`,
+`/exp-review`) target Jupyter notebooks. The planning skills (`/hypothesys`,
+`/to-doc`, `/experiment-pipeline`, `/literature-research`) work in any repo.
+
+**Plugin or skills.sh?**
+The plugin updates itself; skills.sh copies editable files into your project.
+Pick one per agent, not both.
+
 ## Special thanks
 
 The mad-science flow **did not start from scratch**. It adapts the work of two
@@ -162,6 +230,9 @@ Thank you both for sharing this work openly. 🙏
 .cursor-plugin/
 └── plugin.json          # plugin manifest for Cursor
 plugin.json              # portable manifest (agent-plugins.org) for Codex
+llms.txt                 # LLM-readable summary of the repo (llmstxt.org)
+assets/
+└── social-preview.*     # repository social preview image (1280×640)
 skills/
 └── <skill-name>/
     ├── SKILL.md         # skill definition (frontmatter + instructions)

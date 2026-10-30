@@ -1,6 +1,6 @@
 ---
 name: exp-review
-description: "Review the experiment code. Standards: does the code follow this repo's documented coding standards? Quality: does the notebook meet the goals of a good experiment? Run both reviews in parallel sub-agents and report them side by side. Use when the user wants to review an experiment or notebook."
+description: "Review experiment code and Jupyter notebooks on two axes in parallel sub-agents: standards (does the code follow the repo's documented coding standards?) and quality (reproducibility, fixed seeds, data leakage, security, scalability, error handling). Use when the user wants to review an experiment, notebook or ML pipeline before moving on."
 ---
 
 Check whether the code follows the quality rules.

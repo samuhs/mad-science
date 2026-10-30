@@ -1,6 +1,6 @@
 ---
 name: mad-science-setup
-description: Configure this repo for the data science skills: set up main layout and documents. Run once before first use of the other skills.
+description: "Set up a repository for the mad-science data science skills: experiment tracker folder, domain glossary, agent instructions block and .env.example. Run once per repo before the other skills, or when the user says 'set up mad-science' or 'configure this repo for experiments'."
 mode: true
 icon: crown
 color: yellow

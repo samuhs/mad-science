@@ -1,6 +1,6 @@
 ---
 name: experiment-pipeline
-description: Based on the experiment doc, create the experiment pipeline needed to test the hypothesis and premises.
+description: "Break an experiment doc into small vertical slices (stages, phases, experiments) with goals, metrics, status and dependencies, tracked in docs/experiments-pipeline. Use when the experiment contract is settled and the user wants a run plan, wants to know which experiments can run in parallel, or wants to update experiment status."
 disable-model-invocation: true
 mode: true
 icon: crown
