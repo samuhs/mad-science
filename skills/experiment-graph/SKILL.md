@@ -1,6 +1,6 @@
 ---
 name: experiment-graph
-description: Use when the user wants to see the experiment steps of a pipeline doc as a graph — dependencies, status, and critical path at a glance. Triggers: "experiment graph", "graph the experiments", "visualize the pipeline", "experiment status", "experiment dependencies", "picture of the stages".
+description: "Render a read-only interactive graph of an experiment pipeline doc: dependencies, status and critical path at a glance. Use when the user wants to see the experiment steps as a graph, or says 'experiment graph', 'graph the experiments', 'visualize the pipeline', 'experiment status', 'experiment dependencies' or 'picture of the stages'."
 mode: true
 icon: crown
 color: cyan

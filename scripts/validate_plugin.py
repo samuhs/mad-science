@@ -47,6 +47,17 @@ def frontmatter(text: str) -> dict[str, str]:
     return fields
 
 
+def unquoted_colon(text: str) -> bool:
+    """True when a plain-scalar description contains ': ', which YAML rejects."""
+    match = re.search(r"^description:[ \t]*(.*)$", text, re.MULTILINE)
+    if not match:
+        return False
+    value = match.group(1).strip()
+    if value[:1] in ('"', "'", ">", "|"):
+        return False
+    return ": " in value
+
+
 def check_skills(errors: list[str]) -> list[str]:
     names = []
     for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
@@ -59,6 +70,8 @@ def check_skills(errors: list[str]) -> list[str]:
             errors.append(f"{skill_md}: name '{name}' is not kebab-case")
         if len(fields.get("description", "")) < 20:
             errors.append(f"{skill_md}: description missing or too short")
+        if unquoted_colon(skill_md.read_text(encoding="utf-8")):
+            errors.append(f"{skill_md}: unquoted ': ' in description breaks YAML; quote it")
         names.append(directory)
     if not names:
         errors.append(f"no skills found under {SKILLS}")
