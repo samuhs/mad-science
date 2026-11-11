@@ -202,6 +202,13 @@ The implementation skills (`/let-it-rip`, `/developing-data-science-notebooks`,
 The plugin updates itself; skills.sh copies editable files into your project.
 Pick one per agent, not both.
 
+## Maintainers
+
+mad-science is built and maintained by:
+
+- **[@samuhs](https://github.com/samuhs)**
+- **[@Lorenzuou](https://github.com/Lorenzuou)**
+
 ## Special thanks
 
 The mad-science flow **did not start from scratch**. It adapts the work of two
